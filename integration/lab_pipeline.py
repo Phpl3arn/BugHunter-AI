@@ -140,6 +140,10 @@ def execute(task_id):
                 "external_submission_allowed": False
             })
 
+            from integration.evidence_integrity import seal
+
+            seal(workspace.name)
+
             print("\nLAB PIPELINE COMPLETED")
             print("Task:", workspace.name)
             print("Review:", review_id)
