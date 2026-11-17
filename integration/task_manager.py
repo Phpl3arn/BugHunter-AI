@@ -101,7 +101,9 @@ def run_next():
                 [
                     sys.executable,
                     "-m",
-                    "integration.lab_pipeline"
+                    "integration.lab_pipeline",
+                    "--task-id",
+                    task_id
                 ],
                 cwd=ROOT,
                 stdout=log,
