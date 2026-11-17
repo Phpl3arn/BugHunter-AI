@@ -34,7 +34,13 @@ def json_body(result):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ai", action="store_true")
+    parser.add_argument("--output-dir", type=Path)
     args = parser.parse_args()
+
+    global OUT
+    if args.output_dir is not None:
+        OUT = args.output_dir.resolve()
+        OUT.mkdir(parents=True, exist_ok=True)
 
     results = {}
 
