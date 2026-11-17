@@ -57,7 +57,27 @@ def get_tasks():
 
 
 def page():
+    from integration.healthcheck import check_all
+
     rows = get_tasks()
+    health = check_all()
+
+    health_html = "".join(
+        f'<div class="card">{esc(name)}'
+        f'<div class="number" style="color:'
+        f'{"#4ade80" if healthy else "#f87171"}">'
+        f'{"ONLINE" if healthy else "OFFLINE"}</div></div>'
+        for name, healthy in health.items()
+    )
+
+    active = any(
+        task[2] in ("queued", "running")
+        for task in rows
+    )
+    auto_refresh = (
+        '<meta http-equiv="refresh" content="10">'
+        if active else ""
+    )
 
     completed = sum(t[2] == "completed" for t in rows)
     failed = sum(t[2] == "failed" for t in rows)
@@ -96,6 +116,7 @@ def page():
 <html lang="tr">
 <head>
 <meta charset="utf-8">
+{auto_refresh}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BugHunter AI</title>
 <style>
@@ -126,6 +147,9 @@ small {{color:#94a3b8}}
 <h1>🛡️ BugHunter AI</h1>
 <p>Local Security Research Dashboard</p>
 <small>Yalnızca yerel laboratuvar · Salt okunur panel</small>
+
+<h2>Servis Durumu</h2>
+<section class="stats">{health_html}</section>
 
 <section class="stats">
 <div class="card">Tamamlanan<div class="number">{completed}</div></div>
