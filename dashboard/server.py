@@ -100,7 +100,7 @@ def page():
 
         records.append(
             "<tr>"
-            f"<td><code>{esc(task_id)}</code></td>"
+            f"<td><a href=\"/task/{quote(task_id)}\"><code>{esc(task_id)}</code></a></td>"
             f"<td>{esc(kind)}</td>"
             f"<td>{esc(status)}</td>"
             f"<td>{esc(created)}</td>"
@@ -270,6 +270,27 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        task_match = re.fullmatch(
+            r"/task/([A-Za-z0-9_-]{1,64})", path
+        )
+
+        if task_match:
+            from dashboard.task_detail import render
+
+            content = render(task_match.group(1))
+
+            if content is None:
+                self.respond(
+                    404, "Task not found",
+                    "text/plain; charset=utf-8"
+                )
+            else:
+                self.respond(
+                    200, content,
+                    "text/html; charset=utf-8"
+                )
+            return
+
 
         if path == "/":
             try:
