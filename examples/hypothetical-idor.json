@@ -1,0 +1,8 @@
+{
+  "environment": "local_lab",
+  "authorized": true,
+  "target": "localhost",
+  "observation": "Hypothetical: user B appears to view an order owned by user A. This observation has not been tested.",
+  "evidence": [],
+  "notes": "Synthetic training record only; contains no real captured traffic."
+}
