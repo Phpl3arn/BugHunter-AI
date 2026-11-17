@@ -1,4 +1,9 @@
 import html
+import secrets
+import subprocess
+import sys
+import threading
+from urllib.parse import parse_qs
 import json
 import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -13,7 +18,28 @@ RUNS = ROOT / "local_ai_data" / "runs"
 HOST = "127.0.0.1"
 PORT = 8088
 
-TASK_ID = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
+TASK_ID = re.compile(r"[A-Za-z0-9_-]{1,64}\\Z")
+CSRF_TOKEN = secrets.token_urlsafe(32)
+WORKER_LOCK = threading.Lock()
+
+
+def run_worker():
+    try:
+        log_path = ROOT / "local_ai_data" / "dashboard-worker.log"
+        with log_path.open("a", encoding="utf-8") as log:
+            subprocess.run(
+                [sys.executable, "-m", "integration.task_manager", "run"],
+                cwd=ROOT,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                timeout=240,
+                check=False,
+            )
+    except Exception as exc:
+        print("Dashboard worker error:", exc, flush=True)
+    finally:
+        WORKER_LOCK.release()
+
 
 
 def esc(value):
@@ -105,6 +131,14 @@ small {{color:#94a3b8}}
 
 <div class="card">
 <h2>Araştırma Görevleri</h2>
+<form method="post" action="/start">
+<input type="hidden" name="csrf" value="{CSRF_TOKEN}">
+<button type="submit" style="background:#2563eb;color:white;
+padding:12px 18px;border:0;border-radius:8px;
+cursor:pointer;margin-bottom:18px">
+Yeni Laboratuvar Görevi Başlat
+</button>
+</form>
 <div class="scroll">
 <table>
 <thead>
@@ -132,10 +166,79 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header(
             "Content-Security-Policy",
-            "default-src 'none'; style-src 'unsafe-inline'"
+            "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'"
         )
         self.end_headers()
         self.wfile.write(data)
+
+    def do_POST(self):
+        if urlsplit(self.path).path != "/start":
+            self.respond(404, "Not found", "text/plain; charset=utf-8")
+            return
+
+        expected = f"http://{HOST}:{PORT}"
+        if (
+            self.headers.get("Host") != f"{HOST}:{PORT}"
+            or self.headers.get("Origin") != expected
+        ):
+            self.respond(403, "Forbidden", "text/plain; charset=utf-8")
+            return
+
+        try:
+            size = int(self.headers.get("Content-Length", "-1"))
+        except ValueError:
+            size = -1
+
+        if size < 0 or size > 4096:
+            self.respond(400, "Bad request", "text/plain; charset=utf-8")
+            return
+
+        params = parse_qs(
+            self.rfile.read(size).decode("utf-8", errors="replace")
+        )
+
+        tokens = params.get("csrf", [])
+        if len(tokens) != 1 or not secrets.compare_digest(
+            tokens[0], CSRF_TOKEN
+        ):
+            self.respond(403, "Invalid token", "text/plain; charset=utf-8")
+            return
+
+        if not WORKER_LOCK.acquire(blocking=False):
+            self.respond(409, "Worker is busy", "text/plain; charset=utf-8")
+            return
+
+        try:
+            from integration import task_manager, healthcheck
+
+            health = healthcheck.check_all()
+            if not all(health.values()):
+                unavailable = [
+                    name for name, ok in health.items() if not ok
+                ]
+                self.respond(
+                    503,
+                    "Required services unavailable: "
+                    + ", ".join(unavailable),
+                    "text/plain; charset=utf-8",
+                )
+                WORKER_LOCK.release()
+                return
+
+            task_manager.add()
+            threading.Thread(
+                target=run_worker,
+                daemon=True,
+            ).start()
+        except Exception:
+            WORKER_LOCK.release()
+            self.respond(500, "Unable to queue task", "text/plain; charset=utf-8")
+            return
+
+        self.send_response(303)
+        self.send_header("Location", "/")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_GET(self):
         path = urlsplit(self.path).path

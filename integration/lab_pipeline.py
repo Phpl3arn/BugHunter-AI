@@ -20,9 +20,21 @@ def run(command):
         cwd=ROOT,
         text=True,
         capture_output=True,
-        check=True
+        check=False
     )
-    print(result.stdout, flush=True)
+
+    if result.stdout:
+        print(result.stdout, flush=True)
+
+    if result.stderr:
+        print(result.stderr, file=sys.stderr, flush=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}: "
+            f"{command!r}"
+        )
+
     return result.stdout
 
 
