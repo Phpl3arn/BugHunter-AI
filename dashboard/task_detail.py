@@ -49,6 +49,29 @@ def read_limited(path, limit=100000):
     return content
 
 
+
+def integrity_status(task_id):
+    import contextlib
+    import io
+    from integration.evidence_integrity import verify
+
+    seal = RUNS / task_id / "integrity.json"
+
+    if not seal.is_file():
+        return "MÜHÜRLENMEMİŞ", "#94a3b8"
+
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            valid = verify(task_id)
+    except (OSError, ValueError, KeyError, TypeError):
+        valid = False
+
+    if valid:
+        return "PASS", "#4ade80"
+
+    return "FAIL", "#f87171"
+
+
 def render(task_id):
     if not VALID_ID.fullmatch(task_id):
         return None
@@ -65,6 +88,8 @@ def render(task_id):
 
     _, task_type, status, created = task
     folder = RUNS / task_id
+
+    integrity, integrity_color = integrity_status(task_id)
 
     sections = []
 
@@ -138,6 +163,12 @@ Tarih: {escape(created)}
 </p>
 <p>Yerel sentetik laboratuvar.
 AI değerlendirmesi insan incelemesi gerektirir.</p>
+<p>
+Kanıt bütünlüğü:
+<strong style="color:{integrity_color}">
+{escape(integrity)}
+</strong>
+</p>
 {content}
 </main>
 </body>
