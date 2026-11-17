@@ -14,9 +14,20 @@ LOGS = DATA / "task_logs"
 def now():
     return datetime.now(timezone.utc).isoformat()
 
+
+class AutoClosingConnection(sqlite3.Connection):
+    """Commit or rollback, then always close the connection."""
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 def connect():
     DATA.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(DB, timeout=10)
+    db = sqlite3.connect(DB, timeout=10, factory=AutoClosingConnection)
     db.execute("""
         CREATE TABLE IF NOT EXISTS tasks (
             id TEXT PRIMARY KEY,
