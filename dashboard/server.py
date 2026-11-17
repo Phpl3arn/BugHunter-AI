@@ -18,7 +18,7 @@ RUNS = ROOT / "local_ai_data" / "runs"
 HOST = "127.0.0.1"
 PORT = 8088
 
-TASK_ID = re.compile(r"[A-Za-z0-9_-]{1,64}\\Z")
+TASK_ID = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 CSRF_TOKEN = secrets.token_urlsafe(32)
 WORKER_LOCK = threading.Lock()
 
