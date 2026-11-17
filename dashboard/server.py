@@ -74,6 +74,10 @@ def page():
             else "—"
         )
 
+        log = ROOT / "local_ai_data" / "task_logs" / f"{task_id}.log"
+        if TASK_ID.fullmatch(task_id) and log.is_file():
+            link += f' | <a href="/log/{quote(task_id)}">Log</a>'
+
         records.append(
             "<tr>"
             f"<td><code>{esc(task_id)}</code></td>"
@@ -248,6 +252,34 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(200, page(), "text/html; charset=utf-8")
             except Exception:
                 self.respond(500, "Dashboard error", "text/plain; charset=utf-8")
+            return
+
+        log_match = re.fullmatch(r"/log/([A-Za-z0-9_-]{1,64})", path)
+
+        if log_match:
+            task_id = log_match.group(1)
+
+            with connect() as db:
+                exists = db.execute(
+                    "SELECT 1 FROM tasks WHERE id = ?",
+                    (task_id,)
+                ).fetchone()
+
+            if not exists:
+                self.respond(404, "Not found", "text/plain; charset=utf-8")
+                return
+
+            log = ROOT / "local_ai_data" / "task_logs" / f"{task_id}.log"
+
+            if log.is_file():
+                self.respond(
+                    200,
+                    log.read_text(encoding="utf-8", errors="replace")[-100000:],
+                    "text/plain; charset=utf-8"
+                )
+                return
+
+            self.respond(404, "Log not found", "text/plain; charset=utf-8")
             return
 
         match = re.fullmatch(r"/report/([A-Za-z0-9_-]{1,64})", path)
