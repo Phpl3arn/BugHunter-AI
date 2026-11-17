@@ -85,8 +85,15 @@ def page():
 
     records = []
 
+    from dashboard.task_detail import integrity_status
+
     for task_id, kind, status, created in rows:
         report = RUNS / task_id / "report.md"
+        integrity, integrity_color = integrity_status(task_id)
+        integrity_html = (
+            f'<strong style="color:{integrity_color}">'
+            f'{esc(integrity)}</strong>'
+        )
 
         link = (
             f'<a href="/report/{quote(task_id)}">Raporu Aç</a>'
@@ -105,12 +112,13 @@ def page():
             f"<td>{esc(status)}</td>"
             f"<td>{esc(created)}</td>"
             f"<td>{link}</td>"
+            f"<td>{integrity_html}</td>"
             "</tr>"
         )
 
     table_rows = "\n".join(records)
     if not table_rows:
-        table_rows = '<tr><td colspan="5">Henüz görev yok</td></tr>'
+        table_rows = '<tr><td colspan="6">Henüz görev yok</td></tr>'
 
     return f"""<!doctype html>
 <html lang="tr">
@@ -171,7 +179,7 @@ Yeni Laboratuvar Görevi Başlat
 <table>
 <thead>
 <tr><th>Görev ID</th><th>Tür</th><th>Durum</th>
-<th>Oluşturulma</th><th>Rapor</th></tr>
+<th>Oluşturulma</th><th>Rapor</th><th>Bütünlük</th></tr>
 </thead>
 <tbody>{table_rows}</tbody>
 </table>
