@@ -114,6 +114,21 @@ def execute(task_id):
 
             shutil.copy2(draft, workspace / "report.md")
 
+            from integration.ai_evidence_validator import (
+                validate_files, report_section
+            )
+            validation = validate_files(
+                workspace / "idor-comparison.json",
+                workspace / "ai-result.json"
+            )
+            # Preserve evidence: append the assessment only to the draft report
+            # before existing SHA-256 sealing; existing archives stay untouched.
+            with (workspace / "report.md").open("a", encoding="utf-8") as report_file:
+                report_file.write(report_section(validation))
+            print("AI EVIDENCE VALIDATOR:", validation["status"])
+            for issue in validation["ai_claims_flagged"]:
+                print("AI CLAIM FLAGGED:", issue)
+
             shutil.copy2(
                 workspace / "idor-comparison.json",
                 workspace / "evidence.json"
