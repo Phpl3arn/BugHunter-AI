@@ -120,6 +120,9 @@ def page():
     if not table_rows:
         table_rows = '<tr><td colspan="6">Henüz görev yok</td></tr>'
 
+    from dashboard import research_view
+    research_html = research_view.listing()
+
     return f"""<!doctype html>
 <html lang="tr">
 <head>
@@ -185,6 +188,7 @@ Yeni Laboratuvar Görevi Başlat
 </table>
 </div>
 </div>
+{research_html}
 <p>Veriler SQLite görev kuyruğundan okunur.
 Bulgular yalnızca sentetik laboratuvar verileridir.</p>
 </main>
@@ -278,6 +282,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+
+        research_match = re.fullmatch(
+            r"/research/([a-f0-9]{16})", path
+        )
+        if research_match:
+            from dashboard.research_view import detail
+            content = detail(research_match.group(1))
+            if content is None:
+                self.respond(404, "Not found", "text/plain; charset=utf-8")
+            else:
+                self.respond(200, content, "text/html; charset=utf-8")
+            return
+
         task_match = re.fullmatch(
             r"/task/([A-Za-z0-9_-]{1,64})", path
         )
