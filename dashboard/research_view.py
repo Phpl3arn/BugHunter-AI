@@ -139,5 +139,15 @@ pre{{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}}
 <p>İnceleme: {esc(record["status"])}</p>
 <p>Kanıt bütünlüğü: {esc(record["integrity"])}</p>
 <p>Yalnızca sentetik laboratuvar. Dış rapor gönderimi kapalı.</p>
+<form method="post" action="/research/review">
+<input type="hidden" name="csrf" value="{__import__('dashboard.server', fromlist=['CSRF_TOKEN']).CSRF_TOKEN}">
+<input type="hidden" name="task_id" value="{esc(task_id)}">
+<label>İşlem: <select name="action"><option value="submit">İncelemeye gönder</option>
+<option value="approve">Yerel araştırmayı onayla</option>
+<option value="reject">Reddet</option></select></label>
+<label>İnceleyen: <input name="reviewer" required minlength="3" maxlength="80"></label>
+<label>Açıklama: <input name="note" required minlength="10" maxlength="500"></label>
+<button type="submit">İnsan inceleme işlemini uygula</button>
+</form>
 {''.join(sections)}
 </main></body></html>"""

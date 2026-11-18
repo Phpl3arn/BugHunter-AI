@@ -122,6 +122,19 @@ def page():
 
     from dashboard import research_view
     research_html = research_view.listing()
+    research_form = (
+        '<div class="card"><h2>Yeni Sentetik Araştırma</h2>'
+        '<form method="post" action="/research/start">'
+        f'<input type="hidden" name="csrf" value="{CSRF_TOKEN}">'
+        '<label for="scenario">Senaryo: </label>'
+        '<select id="scenario" name="scenario">'
+        '<option value="idor">IDOR</option>'
+        '<option value="xss">XSS</option>'
+        '<option value="ssrf">SSRF</option>'
+        '<option value="access">ACCESS</option></select> '
+        '<button type="submit">Sentetik araştırma oluştur</button>'
+        '</form><p>Harici hedef taraması kapalıdır.</p></div>'
+    )
 
     return f"""<!doctype html>
 <html lang="tr">
@@ -188,6 +201,7 @@ Yeni Laboratuvar Görevi Başlat
 </table>
 </div>
 </div>
+{research_form}
 {research_html}
 <p>Veriler SQLite görev kuyruğundan okunur.
 Bulgular yalnızca sentetik laboratuvar verileridir.</p>
@@ -212,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_POST(self):
-        if urlsplit(self.path).path != "/start":
+        if urlsplit(self.path).path not in ("/start", "/research/start", "/research/review"):
             self.respond(404, "Not found", "text/plain; charset=utf-8")
             return
 
@@ -242,6 +256,19 @@ class Handler(BaseHTTPRequestHandler):
             tokens[0], CSRF_TOKEN
         ):
             self.respond(403, "Invalid token", "text/plain; charset=utf-8")
+            return
+
+        if urlsplit(self.path).path.startswith("/research/"):
+            from dashboard import v2_actions
+            try:
+                location = v2_actions.apply(urlsplit(self.path).path, params)
+            except (ValueError, OSError, KeyError) as exc:
+                self.respond(400, str(exc), "text/plain; charset=utf-8")
+                return
+            self.send_response(303)
+            self.send_header("Location", location)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
             return
 
         if not WORKER_LOCK.acquire(blocking=False):
