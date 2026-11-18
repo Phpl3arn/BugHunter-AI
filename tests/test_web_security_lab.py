@@ -42,7 +42,10 @@ class WebSecurityLabTests(unittest.TestCase):
             with urllib.request.urlopen(request, timeout=3) as response:
                 return response.status, response.read().decode()
         except urllib.error.HTTPError as error:
-            return error.code, error.read().decode()
+            try:
+                return error.code, error.read().decode()
+            finally:
+                error.close()
 
     def test_xss_reflection(self):
         payload = '<script>alert(1)</script>'
